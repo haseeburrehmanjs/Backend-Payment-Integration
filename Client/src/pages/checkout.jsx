@@ -1,108 +1,73 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Card from "../components/Card";
 import { loadStripe } from "@stripe/stripe-js";
 import axios from "axios";
 
-const App = () => {
-  const cartItems = [
-    {
-      id: 1,
-      name: "Laptop",
-      quantity: 1,
-      price: 999.99,
-    },
-    {
-      id: 2,
-      name: "Wireless Mouse",
-      quantity: 2,
-      price: 25.5,
-    },
-    {
-      id: 3,
-      name: "Keyboard",
-      quantity: 1,
-      price: 49.99,
-    },
-    {
-      id: 4,
-      name: "USB-C Cable",
-      quantity: 3,
-      price: 15.0,
-    },
-    {
-      id: 5,
-      name: "Headphones",
-      quantity: 1,
-      price: 199.99,
-    },
-  ];
+const Checkout = () => {
+  const [data, setData] = useState([]);
 
-  const [item, setItem] = useState([...cartItems]);
+  useEffect(() => {
+    const storedData = localStorage.getItem("cartitem");
+    if (storedData) {
+      try {
+        const parsedData = JSON.parse(storedData);
+        setData(parsedData);
+      } catch (error) {
+        console.error("Error parsing JSON from localStorage", error);
+      }
+    }
+  }, []);
 
   const payNow = async () => {
-    const stripe = await loadStripe(
-      "pk_test_51QZUKPFErLGTcHoSAMUiuvUctojbUt02H9aL7V8Kflf5kXBgfQe7SQPBeNuinXghepBKI3nnLuy92hq1g3EmxTx2002CHFKS2V"
-    );
-
-    const response = await axios.post("http://localhost:3000/api/v1/checkout", {
-      products: item,
-    });
-
-    console.log(response.data.id);
-
-    const result = stripe.redirectToCheckout({
-      sessionId: response.data.id,
-    });
+    try {
+      const stripe = await loadStripe('pk_test_51QZxUzBHinCJTrQEY1cccx09WFzL4PoJaFwUnVhb9MNn8LUym9khyTfDTHfihwqcyu8Jp3LOnpi61KDcNr6dLEbR00LWsWliFN');
+  
+      const response = await axios.post("http://localhost:3000/api/v1/checkout", {
+        products: data,
+      });
+  
+      console.log(response.data.id);
+  
+      const result = await stripe.redirectToCheckout({
+        sessionId: response.data.id,
+      });
+  
+      if (result.error) {
+        console.error("Stripe checkout error:", result.error.message);
+      }
+    } catch (error) {
+      console.error("Error in payNow:", error);
+    }
   };
+  
 
-  const increaseQuantity = (index) => {
-    item[index].quantity += 1;
-    setItem([...item]);
-  };
-  const decreaseQuantity = (index) => {
-    item[index].quantity -= 1;
-    setItem([...item]);
-  };
-  const deleteItem = (index) => {
-    item.splice(index, 1);
-    setItem([...item]);
-  };
   return (
-    <>
-      <h1>Checkout</h1>
-
-      <div>
-        {item.map((item, index) => {
-          return (
-            <div
-              style={{
-                border: "1px solid black",
-                borderRadius: "20px",
-                padding: "20px",
-                margin: "10px",
-              }}
-              key={item.id}
-            >
-              <p>Name {item.name}</p>
-              <button onClick={() => decreaseQuantity(index)}>-</button>
-              <p>quantity {item.quantity}</p>
-              <button onClick={() => increaseQuantity(index)}>+</button>
-              <p>price {item.price * item.quantity}</p>
-              <button onClick={() => deleteItem(index)}>delete</button>
-            </div>
-          );
-        })}
-
-        <div
-          style={{
-            textAlign: "center",
-            margin: "50px",
-          }}
-        >
-          <button onClick={payNow}>Pay Now</button>
+    <div>
+      {data.length > 0 ? (
+        <div className="flex justify-center flex-wrap container mx-auto">
+          {data.map((item, index) => (
+            <Card
+              key={index}
+              productName={item.title}
+              price={item.price}
+              thumbnail={item.thumbnail}
+              discountPercentage={item.discountPercentage}
+            />
+          ))}
         </div>
+      ) : (
+        <div>Loading...</div>
+      )}
+      <div
+        style={{
+          textAlign: "center",
+          margin: "50px",
+        }}
+      >
+        <button onClick={payNow}>Pay Now</button>
       </div>
-    </>
+    </div>
   );
 };
 
-export default App;
+export default Checkout;
